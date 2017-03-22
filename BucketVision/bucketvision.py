@@ -63,6 +63,8 @@ import platform
 
 if (platform.system() == 'Windows'):
     roboRioAddress = '127.0.0.1'
+elif( platform.system() == 'Darwin'):
+    roboRioAddress = '127.0.0.1'
 else:
     #roboRioAddress = '10.38.14.2' # On practice field
     roboRioAddress = '10.41.83.2' # On competition field
@@ -88,7 +90,7 @@ from rope import Rope
 
 from blueboiler import BlueBoiler
 from redboiler import RedBoiler
-from boiler import Boiler
+#from boiler import Boiler
 from gearlift import GearLift
 from smokestack import SmokeStack
 
@@ -132,7 +134,7 @@ location = bvTable.getAutoUpdateValue('allianceLocation',1)
 
 redBoiler = RedBoiler()
 blueBoiler = BlueBoiler()
-boiler = Boiler()
+#boiler = Boiler()
 gearLift = GearLift(bvTable)
 
 rope = Rope()
@@ -275,14 +277,15 @@ print("Waiting for CamServer to start...")
 # Redirect port 80 to 8080
 # keeping us legal on the field (i.e., requires 80)
 # AND eliminating the need to start this script as root
-cmd = ['sudo iptables -t nat -D PREROUTING 1']
-call(cmd,shell=True)
-cmd = ['sudo iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 8080']
-call(cmd,shell=True)
-cmd = ['sudo iptables -t nat -D PREROUTING 2']
-call(cmd,shell=True)
-cmd = ['sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp --dport 80 -j REDIRECT --to-port 8080']
-call(cmd,shell=True)
+#
+#cmd = ['sudo iptables -t nat -D PREROUTING 1']
+#call(cmd,shell=True)
+#cmd = ['sudo iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 8080']
+#call(cmd,shell=True)
+#cmd = ['sudo iptables -t nat -D PREROUTING 2']
+#call(cmd,shell=True)
+#cmd = ['sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp --dport 80 -j REDIRECT --to-port 8080']
+#call(cmd,shell=True)
 
 camHttpServer = HTTPServer(('',8080),CamHTTPHandler)
 camServer = BucketServer("CamServer", camHttpServer).start()

@@ -191,11 +191,12 @@ class BucketCapture:
 
     def updateExposure(self, exposure):
         self.exposure = exposure
-        
+        return
+    
     def setExposure(self):
         # cv2 exposure control DOES NOT WORK ON PI self.stream.set(cv2.CAP_PROP_EXPOSURE,self.exposure)
         # cv2 exposure control DOES NOT WORK ON PI self.stream.set(cv2.CAP_PROP_EXPOSURE,self.exposure)
-        if (platform.system() == 'Windows'):
+        if (platform.system() == 'Windows' or platform.system() == 'Darwin'):
             self.stream.set(cv2.CAP_PROP_EXPOSURE,self.exposure)
         else:
             cmd = ['v4l2-ctl --device=' + str(self.src) + ' -c exposure_auto=1 -c exposure_absolute=' + str(self.exposure)]
