@@ -53,9 +53,8 @@ starttime = time.time()
 
 norm = cv2.NORM_L2
 
-# Create SURF object. You can specify params here or later.
-# Here I set Hessian Threshold to 400
-surf = cv2.xfeatures2d.SURF_create(400)
+# Create SURF object
+surf = cv2.xfeatures2d.SURF_create()
 kp1, des1 = surf.detectAndCompute(img1,None)
 kp2, des2 = surf.detectAndCompute(img2,None)
 
