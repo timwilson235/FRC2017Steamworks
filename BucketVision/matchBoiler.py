@@ -91,6 +91,14 @@ if (len(good)>MIN_MATCH_COUNT):
     pts = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
     dst = cv2.perspectiveTransform(pts,M)
     cv2.polylines(img2,[np.int32(dst)],True,(255,255,255),2, cv2.LINE_AA)  
+
+    h,w = img1.shape
+    top = (int(w/2),0)
+    bot = (int(w/2),h)
+    pts = np.float32([ [top],[bot] ]).reshape(-1,1,2)
+    mid = cv2.perspectiveTransform(pts,M)
+    cv2.line(img1,(int(w/2),0),(int(w/2),h),255,2)
+    cv2.line(img2,(mid[0][0][0],mid[0][0][1]),(mid[1][0][0],mid[1][0][1]),(255,0,0),2)
        
 else:
     print("Not enough matches are found - %d/%d" % (len(good),MIN_MATCH_COUNT))
