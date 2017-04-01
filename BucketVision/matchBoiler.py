@@ -45,7 +45,7 @@ img1 = cv2.imread("redBoilerTrainWhole.jpg",cv2.IMREAD_GRAYSCALE)
 
 print(img1.shape)
 
-img2 = cv2.imread('redBoiler8ftLeft.jpg', cv2.IMREAD_GRAYSCALE)
+img2 = cv2.imread('blueBoiler5ftRight.jpg', cv2.IMREAD_GRAYSCALE)
 img2 = cv2.resize(img2,(320,240))
 
 starttime = time.time()
