@@ -1,28 +1,20 @@
 
-from threading import Lock
 from threading import Thread
 from threading import Condition
 
 from framerate import FrameRate
-from frameduration import FrameDuration
 
 class BucketProcessor:
-    def __init__(self,stream,ipdictionary, ipselection):
-        print("Creating BucketProcessor for " + stream.name)
-        self._lock = Lock()
-        self._condition = Condition()
+    def __init__(self, camera, pipeline):
+        print("Creating BucketProcessor for " + camera.name)
+        self.name = camera.name
+        self.pipeline = pipeline
+        
         self.fps = FrameRate()
-        self.duration = FrameDuration()
-        self.stream = stream
-        self.name = self.stream.name
-        self.ipdictionary = ipdictionary
-        self.ipselection = ipselection
-        self.ip = self.ipdictionary[ipselection]
+        self.camera = camera
+        self._condition = Condition()
 
-        self._frame = None
-        self.frame = None
-        self.count = 0
-        self.isNew = False
+        self.frameAvailable = False
         
         # initialize the variable used to indicate if the thread should
         # be stopped
@@ -42,9 +34,7 @@ class BucketProcessor:
         print("BucketProcessor for " + self.name + " RUNNING")
         # keep looping infinitely until the thread is stopped
         self.stopped = False
-        self.fps.start()
 
-        lastIpSelection = self.ipselection
         
         while True:
             # if the thread indicator variable is set, stop the thread
@@ -55,56 +45,54 @@ class BucketProcessor:
 
             # otherwise, read the next frame from the stream
             # grab the frame from the threaded video stream
-            (self._frame, count, isNew) = self.stream.read()
-            self.duration.start()
-            self.fps.update()
+            (frame, count) = self.camera.read()
+            
+            self.fps.start()
 
-            if (lastIpSelection != self.ipselection):
-                self.ip = self.ipdictionary[self.ipselection]
-                lastIpSelection = self.ipselection
+            self._condition.acquire()
+            pipeline = self.pipeline
+            self._condition.release()
+            
+            pipeline.process(frame)
 
-            if (isNew == True):
-                # TODO: Insert processing code then forward display changes
-                self.ip.process(self._frame)
                 
-                # Now that image processing is complete, place results
-                # into an outgoing buffer to be grabbed at the convenience
-                # of the reader
-                self._condition.acquire()
-                self._lock.acquire()
-                self.count = self.count + 1
-                self.isNew = isNew
-                self.frame = self._frame
-                self._lock.release()
-                self._condition.notifyAll()
-                self._condition.release()
+            # Now that image processing is complete, place results
+            # into an outgoing buffer to be grabbed at the convenience
+            # of the reader
+            self._condition.acquire()
+            self.outFrame = frame
+            self.outCount = count
+            self.frameAvailable = True
+            self._condition.notify()
+            self._condition.release()
 
-            self.duration.update()
+            self.fps.stop()
                 
         print("BucketProcessor for " + self.name + " STOPPING")
 
-    def updateSelection(self, ipselection):
-        self.ipselection = ipselection
+    def updatePipeline(self, pipeline):
+        self._condition.acquire()
+        self.pipeline = pipeline
+        self._condition.release()
 
     def read(self):
-        # return the frame most recently processed if the frame
-        # is not being updated at this exact moment
+        
         self._condition.acquire()
-        self._condition.wait()
+        while not self.frameAvailable:
+            self._condition.wait()           
+        outFrame = self.outFrame
+        outCount = self.outCount
+        self.frameAvailable = False
         self._condition.release()
-        if (self._lock.acquire() == True):
-            self.outFrame = self.frame
-            self.outCount = self.count
-            self._lock.release()
-            return (self.outFrame, self.outCount, True)
-        else:
-            return (self.outFrame, self.outCount, False)
+        return (outFrame, outCount)
           
     def stop(self):
         # indicate that the thread should be stopped
         self._stop = True
+        
         self._condition.acquire()
-        self._condition.notifyAll()
+        self.frameAvailable = True
+        self._condition.notify()
         self._condition.release()
 
     def isStopped(self):

@@ -33,9 +33,6 @@ SOFTWARE.
 """
 # import the necessary packages
 
-import cv2
-
-from BaseHTTPServer import BaseHTTPRequestHandler,HTTPServer
 
 from threading import Thread
         

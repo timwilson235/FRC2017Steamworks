@@ -13,7 +13,6 @@ Created on Tue Jan 24 20:46:25 2017
 import cv2
 
 from subprocess import call
-from threading import Lock
 from threading import Thread
 from threading import Condition
 
@@ -22,27 +21,24 @@ import platform
 # import our classes
 
 from framerate import FrameRate
-from frameduration import FrameDuration
+
+# This CANNOT be shared between multiple Processors!
 
 class BucketCapture:
-    def __init__(self, name,src,width,height,exposure):
+    def __init__(self, name, src, width, height, exposure):
 
         print("Creating BucketCapture for " + name)
-        
-        self._lock = Lock()
-        self._condition = Condition()
-        self.fps = FrameRate()
-        self.duration = FrameDuration()
         self.name = name
         self.src = src
-        
-        # initialize the video camera stream and read the first frame
-        # from the stream
+        self.exposure = exposure
+                
         self.stream = cv2.VideoCapture(src)
         self.stream.set(cv2.CAP_PROP_FRAME_WIDTH,width)
         self.stream.set(cv2.CAP_PROP_FRAME_HEIGHT,height)
-        self.exposure = exposure
-
+        
+        self._condition = Condition()
+        self.fps = FrameRate()
+        
         self.setExposure()
 
         self.rate = self.stream.get(cv2.CAP_PROP_FPS)
@@ -54,23 +50,11 @@ class BucketCapture:
         self.saturation = self.stream.get(cv2.CAP_PROP_SATURATION)
         print("SATURATION = " + str(self.saturation))
         print("EXPOSURE = " + str(self.exposure))
-##        self.iso = self.stream.get(cv2.CAP_PROP_ISO_SPEED)
-##        print("ISO = " + str(self.iso))
-
-        (self._grabbed, self._frame) = self.stream.read()
         
-        if (self._grabbed == True):
-            self.grabbed = self._grabbed
-            self.frame = self._frame
-            self.outFrame = self.frame
-            self.count = 1
-            self.outCount = self.count
-        else:
-            self.grabbed = False
-            self.frame = None
-            self.outFrame = None
-            self.count = 0
-            self.outCount = self.count
+
+        self.frameAvail = False
+        self.count = 0
+       
 
         # initialize the variable used to indicate if the thread should
         # be stopped
@@ -89,8 +73,9 @@ class BucketCapture:
 
     def update(self):
         print("BucketCapture for " + self.name + " RUNNING")
-        # keep looping infinitely until the thread is stopped
         self.stopped = False
+        
+        # keep looping infinitely until the thread is stopped
         self.fps.start()
 
         lastExposure = self.exposure
@@ -98,7 +83,7 @@ class BucketCapture:
         while True:
             # if the thread indicator variable is set, stop the thread
             if (self._stop == True):
-                self.stop = False
+                self._stop = False
                 self.stopped = True
                 return
 
@@ -107,43 +92,39 @@ class BucketCapture:
                 lastExposure = self.exposure
 
             # otherwise, read the next frame from the stream
-            (self._grabbed, self._frame) = self.stream.read()
-            self.duration.start()
-            self.fps.update()
+            (grabbed, frame) = self.stream.read()
+            
+            self.fps.start()
             
             
-            # if something was grabbed and retreived then lock
-            # the outboundw buffer for the update
-            # This limits the blocking to just the copy operations
-            # later we may consider a queue or double buffer to
-            # minimize blocking
-            if (self._grabbed == True):
+            # grabbed will be false if camera has been disconnected.
+            # How to deal with that??
+            # Should probably try to reconnect somehow? Don't know how...
+                
+            if grabbed:
+                self.count += 1
+                
                 self._condition.acquire()
-                self._lock.acquire()
-                self.count = self.count + 1
-                self.grabbed = self._grabbed
-                self.frame = self._frame
-                self._lock.release()
-                self._condition.notifyAll()
+                self.outCount = self.count
+                self.outFrame = frame.copy()
+                self.frameAvail = True
+                self._condition.notify()
                 self._condition.release()
+            
+            self.fps.stop()
 
-            self.duration.update()
                 
         print("BucketCapture for " + self.name + " STOPPING")
 
-    def read(self):
-        # return the frame most recently read if the frame
-        # is not being updated at this exact moment
+    def read(self):       
         self._condition.acquire()
-        self._condition.wait()
+        while not self.frameAvail:
+            self._condition.wait()
+        outFrame = self.outFrame
+        outCount = self.outCount
+        self.frameAvail = False
         self._condition.release()
-        if (self._lock.acquire() == True):
-            self.outFrame = self.frame
-            self.outCount = self.count
-            self._lock.release()
-            return (self.outFrame, self.outCount, True)
-        else:
-            return (self.outFrame, self.outCount, False)
+        return (outFrame, outCount)
 
     def processUserCommand(self, key):
         if key == ord('x'):
@@ -174,12 +155,13 @@ class BucketCapture:
             print("SATURATION = " + str(self.saturation))
         elif key == ord('z'):
             self.exposure+=1
-            setExposure(self.exposure)
+            self.setExposure(self.exposure)
             print("EXPOSURE = " + str(self.exposure))
         elif key == ord('c'):
             self.exposure-=1
-            setExposure(self.exposure)
+            self.setExposure(self.exposure)
             print("EXPOSURE = " + str(self.exposure))
+            
 ##        elif key == ord('p'):
 ##            self.iso +=1
 ##            self.stream.set(cv2.CAP_PROP_ISO_SPEED, self.iso)
@@ -194,8 +176,7 @@ class BucketCapture:
         return
     
     def setExposure(self):
-        # cv2 exposure control DOES NOT WORK ON PI self.stream.set(cv2.CAP_PROP_EXPOSURE,self.exposure)
-        # cv2 exposure control DOES NOT WORK ON PI self.stream.set(cv2.CAP_PROP_EXPOSURE,self.exposure)
+        # cv2 exposure control DOES NOT WORK ON PI - or Mac (Darwin)
         if (platform.system() == 'Windows' or platform.system() == 'Darwin'):
             self.stream.set(cv2.CAP_PROP_EXPOSURE,self.exposure)
         else:
@@ -207,7 +188,8 @@ class BucketCapture:
         # indicate that the thread should be stopped
         self._stop = True
         self._condition.acquire()
-        self._condition.notifyAll()
+        self.frameAvail = True
+        self._condition.notify()
         self._condition.release()
 
     def isStopped(self):
