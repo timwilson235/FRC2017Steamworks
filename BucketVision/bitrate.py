@@ -11,9 +11,7 @@ class BitRate:
         self._totBytes = 0
         self._numFrames = 0
         self._bitrate = 0.0
-        
-        self._stopwatch.start()
-    
+            
     def update(self, bytecnt):
         self._numFrames += 1
         self._totBytes += bytecnt
@@ -23,8 +21,10 @@ class BitRate:
         if self._numFrames > 10 :
             totTime = self._stopwatch.stop()
             self._bitrate = (8*self._totBytes/totTime)/1000.0
+            
             self._numFrames = 0
             self._totBytes = 0
+            self._stopwatch.start()
         
         return self._bitrate
             

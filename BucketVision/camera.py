@@ -24,10 +24,10 @@ from framerate import FrameRate
 
 # This CANNOT be shared between multiple Processors!
 
-class BucketCapture:
+class Camera:
     def __init__(self, name, src, width, height, exposure):
 
-        print("Creating BucketCapture for " + name)
+        print("Creating Camera for " + name)
         
         self.name = name
         self.src = src
@@ -37,7 +37,7 @@ class BucketCapture:
         self.stream.set(cv2.CAP_PROP_FRAME_WIDTH,width)
         self.stream.set(cv2.CAP_PROP_FRAME_HEIGHT,height)
         
-        self._condition = Condition()
+        self.condition = Condition()
         self.fps = FrameRate()
         
         self.setExposure()
@@ -55,19 +55,19 @@ class BucketCapture:
 
         self.frameAvail = False
         self.count = 0
-        self._running = False
+        self.running = False
 
 
     def start(self):
-        print("STARTING BucketCapture for " + self.name)
+        print("STARTING Camera for " + self.name)
         t = Thread(target=self.run, args=())
         t.daemon = True
         t.start()
         return self
 
     def run(self):
-        print("BucketCapture for " + self.name + " RUNNING")
-        self._running = True
+        print("Camera for " + self.name + " RUNNING")
+        self.running = True
         
         lastExposure = self.exposure
         
@@ -90,24 +90,24 @@ class BucketCapture:
             if grabbed:
                 self.count += 1
                 
-                self._condition.acquire()
+                self.condition.acquire()
                 self.outCount = self.count
                 self.outFrame = frame.copy()
                 self.frameAvail = True
-                self._condition.notify()
-                self._condition.release()
+                self.condition.notify()
+                self.condition.release()
             
             self.fps.stop()
 
                 
     def read(self):       
-        self._condition.acquire()
+        self.condition.acquire()
         while not self.frameAvail:
-            self._condition.wait()
+            self.condition.wait()
         outFrame = self.outFrame
         outCount = self.outCount
         self.frameAvail = False
-        self._condition.release()
+        self.condition.release()
         return (outFrame, outCount)
 
     def processUserCommand(self, key):
@@ -169,5 +169,5 @@ class BucketCapture:
         
     
     def isRunning(self):
-        return self._running
+        return self.running
 

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-bucketvision
+main
 
 Many hands make light work!
 A multi-threaded vision pipeline example for Bit Buckets Robotics that
@@ -43,27 +43,27 @@ import time
 # import our classes
 
 from framerate import FrameRate
-from bucketcapture import BucketCapture  # Camera capture threads... may rename this
-from bucketprocessor import BucketProcessor  # Image processing threads... has same basic structure (may merge classes)
-from faces import Faces  # Useful for basic testing of driverCam/Processor pipeline
+from bucketcapture import Camera  # Camera capture threads... may rename this
+import processor.Processor  # Image processing threads... has same basic structure (may merge classes)
+from faces import Faces  # Useful for basic testing of driverCam/processor pipeline
 
 
-bucketCam = BucketCapture(name="bucketCam", src=0, width=320, height=240, exposure=100).start()
+bucketCam = Camera(name="bucketCam", src=0, width=320, height=240, exposure=100).start()
 
-print("Waiting for BucketCapture to start...")
+print("Waiting for Camera to start...")
 while (bucketCam.isStopped() == True):
     time.sleep(0.001)
 
-print("BucketCapture appears online!")
+print("Camera appears online!")
 
 
-bucketProcessor = BucketProcessor(bucketCam, Faces()).start()
+bucketProcessor = processor(bucketCam, Faces()).start()
 
-print("Waiting for BucketProcessor to start...")
+print("Waiting for processor to start...")
 while (bucketProcessor.isStopped() == True):
     time.sleep(0.001)
 
-print("BucketProcessor appear online!")
+print("processor appear online!")
 
 fps = FrameRate()  
 
@@ -95,14 +95,14 @@ while (True):
 # stop the image processors
 bucketProcessor.stop()
 
-print("Waiting for BucketProcessor to stop...")
+print("Waiting for processor to stop...")
 while (bucketProcessor.isStopped() == False):
     time.sleep(0.001)
 
 # stop the camera capture
 bucketCam.stop()
 
-print("Waiting for BucketCapture to stop...")
+print("Waiting for Camera to stop...")
 while (bucketCam.isStopped() == False):
     time.sleep(0.001)
  

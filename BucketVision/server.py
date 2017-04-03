@@ -36,7 +36,7 @@ SOFTWARE.
 from BaseHTTPServer import BaseHTTPRequestHandler,HTTPServer
 from threading import Thread
 
-class CamHTTPHandler(BaseHTTPRequestHandler):
+class HTTPHandler(BaseHTTPRequestHandler):
     
     jpgSource = None
             
@@ -54,35 +54,35 @@ class CamHTTPHandler(BaseHTTPRequestHandler):
             self.send_header('Content-type', 'image/jpeg')
             self.send_header('Content-length', str(len(buf)))
             self.end_headers()
-            self.wfile.write(bytearray(buf))
+            self.wfile.write(buf)
             self.wfile.write('\r\n')
 
              
         
 
-class BucketServer:
+class Server:
 
     def __init__(self, jpgSource):
         
-        print("Creating BucketServer")
+        print("Creating Server")
         
-        CamHTTPHandler.jpgSource = jpgSource
-        self._server = HTTPServer(('', 8080), CamHTTPHandler)
+        HTTPHandler.jpgSource = jpgSource
+        self.server = HTTPServer(('', 8080), HTTPHandler)
                        
-        self._running = False
+        self.running = False
     
     def start(self):
-        print("BucketServer STARTING")
+        print("Server STARTING")
         t = Thread(target=self.run, args=())
         t.daemon = True
         t.start()
         return self
 
     def run(self):
-        print("BucketServer RUNNING")
-        self._running = True
-        self._server.serve_forever()
+        print("Server RUNNING")
+        self.running = True
+        self.server.serve_forever()
   
     def isRunning(self):
-        return self._running
+        return self.running
 

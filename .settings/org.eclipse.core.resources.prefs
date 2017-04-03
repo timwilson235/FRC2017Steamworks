@@ -1,8 +1,8 @@
 eclipse.preferences.version=1
-encoding//BucketVision/bucketcapture.py=utf-8
-encoding//BucketVision/bucketserver.py=utf-8
-encoding//BucketVision/bucketvision.py=utf-8
+encoding//BucketVision/camera.py=utf-8
 encoding//BucketVision/facedetector.py=utf-8
 encoding//BucketVision/framerate.py=utf-8
+encoding//BucketVision/main.py=utf-8
 encoding//BucketVision/match.py=utf-8
 encoding//BucketVision/matchBoiler.py=utf-8
+encoding//BucketVision/server.py=utf-8
