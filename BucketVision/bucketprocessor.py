@@ -13,38 +13,27 @@ class BucketProcessor:
         self.fps = FrameRate()
         self.camera = camera
         self._condition = Condition()
-
         self.frameAvailable = False
         
-        # initialize the variable used to indicate if the thread should
-        # be stopped
-        self._stop = False
-        self.stopped = True
+        self._running = False
 
         print("BucketProcessor created for " + self.name)
         
     def start(self):
         print("STARTING BucketProcessor for " + self.name)
-        t = Thread(target=self.update, args=())
+        t = Thread(target=self.run, args=())
         t.daemon = True
         t.start()
         return self
 
-    def update(self):
+    def run(self):
         print("BucketProcessor for " + self.name + " RUNNING")
         # keep looping infinitely until the thread is stopped
-        self.stopped = False
+        self._running = True
 
         
         while True:
-            # if the thread indicator variable is set, stop the thread
-            if (self._stop == True):
-                self._stop = False
-                self.stopped = True
-                return
 
-            # otherwise, read the next frame from the stream
-            # grab the frame from the threaded video stream
             (frame, count) = self.camera.read()
             
             self.fps.start()
@@ -86,15 +75,7 @@ class BucketProcessor:
         self._condition.release()
         return (outFrame, outCount)
           
-    def stop(self):
-        # indicate that the thread should be stopped
-        self._stop = True
-        
-        self._condition.acquire()
-        self.frameAvailable = True
-        self._condition.notify()
-        self._condition.release()
 
-    def isStopped(self):
-        return self.stopped
-		
+    def isRunning(self):
+        return self._running
+

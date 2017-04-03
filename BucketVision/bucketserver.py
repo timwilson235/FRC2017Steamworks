@@ -33,49 +33,56 @@ SOFTWARE.
 """
 # import the necessary packages
 
-
+from BaseHTTPServer import BaseHTTPRequestHandler,HTTPServer
 from threading import Thread
+
+class CamHTTPHandler(BaseHTTPRequestHandler):
+    
+    jpgSource = None
+            
+    def do_GET(self):
         
+        self.send_response(200)
+        self.send_header('Content-type', 'multipart/x-mixed-replace; boundary=--jpgboundary')
+        self.end_headers()
+        
+        while True:
+            
+            buf = self.jpgSource.get()
+                                          
+            self.wfile.write("--jpgboundary\r\n")
+            self.send_header('Content-type', 'image/jpeg')
+            self.send_header('Content-length', str(len(buf)))
+            self.end_headers()
+            self.wfile.write(bytearray(buf))
+            self.wfile.write('\r\n')
+
+             
+        
+
 class BucketServer:
 
-    def __init__(self,name,httpserver):
-        self.name= name
-        self.server = httpserver
-        print("Creating BuckerServer for " + self.name)
-                
-        # initialize the variable used to indicate if the thread should
-        # be stopped
-        self._stop = False
-        self.stopped = True
-
-        print("BucketServerImageProcessor created for " + self.name)
+    def __init__(self, jpgSource):
+        
+        print("Creating BucketServer")
+        
+        CamHTTPHandler.jpgSource = jpgSource
+        self._server = HTTPServer(('', 8080), CamHTTPHandler)
+                       
+        self._running = False
     
     def start(self):
-        print("STARTING BucketServer for " + self.name)
-        t = Thread(target=self.update, args=())
+        print("BucketServer STARTING")
+        t = Thread(target=self.run, args=())
         t.daemon = True
         t.start()
         return self
 
-    def update(self):
-        print("BuckerServer for " + self.name + " RUNNING")
-        
-
-        self.stopped = False
-
-        
-        self.server.serve_forever()  # Until shutdown is commanded
-        
-        self._stop = False
-        self.stopped = True
-                
-        print("BucketServer for " + self.name + " STOPPING")
-    
-    def stop(self):
-        # indicate that the thread should be stopped
-        self._stop = True
-        self.server.shutdown()
-
-    def isStopped(self):
-        return self.stopped
+    def run(self):
+        print("BucketServer RUNNING")
+        self._running = True
+        self._server.serve_forever()
+  
+    def isRunning(self):
+        return self._running
 

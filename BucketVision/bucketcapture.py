@@ -28,6 +28,7 @@ class BucketCapture:
     def __init__(self, name, src, width, height, exposure):
 
         print("Creating BucketCapture for " + name)
+        
         self.name = name
         self.src = src
         self.exposure = exposure
@@ -54,38 +55,23 @@ class BucketCapture:
 
         self.frameAvail = False
         self.count = 0
-       
+        self._running = False
 
-        # initialize the variable used to indicate if the thread should
-        # be stopped
-        self._stop = False
-        self.stopped = True
-
-        print("BucketCapture created for " + self.name)
 
     def start(self):
-        # start the thread to read frames from the video stream
         print("STARTING BucketCapture for " + self.name)
-        t = Thread(target=self.update, args=())
+        t = Thread(target=self.run, args=())
         t.daemon = True
         t.start()
         return self
 
-    def update(self):
+    def run(self):
         print("BucketCapture for " + self.name + " RUNNING")
-        self.stopped = False
+        self._running = True
         
-        # keep looping infinitely until the thread is stopped
-        self.fps.start()
-
         lastExposure = self.exposure
         
         while True:
-            # if the thread indicator variable is set, stop the thread
-            if (self._stop == True):
-                self._stop = False
-                self.stopped = True
-                return
 
             if (lastExposure != self.exposure):
                 self.setExposure()
@@ -114,8 +100,6 @@ class BucketCapture:
             self.fps.stop()
 
                 
-        print("BucketCapture for " + self.name + " STOPPING")
-
     def read(self):       
         self._condition.acquire()
         while not self.frameAvail:
@@ -184,14 +168,6 @@ class BucketCapture:
             call(cmd,shell=True)
         
     
-    def stop(self):
-        # indicate that the thread should be stopped
-        self._stop = True
-        self._condition.acquire()
-        self.frameAvail = True
-        self._condition.notify()
-        self._condition.release()
-
-    def isStopped(self):
-        return self.stopped
+    def isRunning(self):
+        return self._running
 

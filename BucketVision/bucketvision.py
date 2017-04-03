@@ -40,7 +40,7 @@ SOFTWARE.
 # import the necessary packages
 
 import cv2
-from BaseHTTPServer import BaseHTTPRequestHandler,HTTPServer
+import numpy as np
 import time
 
 
@@ -49,10 +49,11 @@ import logging      # Needed if we want to see debug messages from NetworkTables
 
 # import our classes
 
-from framerate import FrameRate
 from bucketcapture import BucketCapture     # Camera capture threads... may rename this
 from bucketprocessor import BucketProcessor   # Image processing threads... has same basic structure (may merge classes)
 from bucketserver import BucketServer       # Run the HTTP service
+from framerate import FrameRate
+from bitrate import BitRate
 
 import platform
 
@@ -112,7 +113,7 @@ FRONT_CAM_NORMAL_EXPOSURE = -1   # Camera default
 frontCam = BucketCapture(name="FrontCam", src=0, width=320, height=240, 
                          exposure=FRONT_CAM_GEAR_EXPOSURE).start()
 
-while ((frontCam.isStopped() == True)):
+while not frontCam.isRunning():
     time.sleep(0.001)
 
 print("BucketCapture appears online!")
@@ -134,56 +135,13 @@ frontPipes = {'redBoiler'   : Nada('RedBoiler'),
 
 frontProcessor = BucketProcessor(frontCam, frontPipes['gearLift']).start()
 
+processors = {'frontCam' : frontProcessor}
 
-while ((frontProcessor.isStopped() == True)):
+while not frontProcessor.isRunning():
     time.sleep(0.001)
-
 print("BucketProcessors appear online!")
 
 
-processors = {'frontCam' : frontProcessor}
-
-
-class CamHTTPHandler(BaseHTTPRequestHandler):
-    _stop = False
-    fps = FrameRate()
-
-    def stop(self):
-        self._stop = True
-        
-    def do_GET(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'multipart/x-mixed-replace; boundary=--jpgboundary')
-        self.end_headers()
-        
-        while (frontProcessor.isStopped() == False):
-            theProcessor = processors[currentCam.value]
-                                   
-            (img, _) = theProcessor.read()
-                               
-            camFps, camUtil = theProcessor.camera.fps.get()
-            procFps, procUtil = theProcessor.fps.get()
-            srvFps, srvUtil = self.fps.get()
-
-            cv2.putText(img, "{:.1f} : {:.0f}%".format(camFps, 100*camUtil), (0, 20), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
-            cv2.putText(img, "{:.1f} : {:.0f}%".format(procFps, 100*procUtil), (0, 40), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
-            cv2.putText(img, "{:.1f} : {:.0f}%".format(srvFps, 100*srvUtil), (0, 60), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
-
-            cv2.putText(img, currentCam.value, (0, 80), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
-            cv2.putText(img, theProcessor.pipeline.name, (0, 100), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
-
-            self.fps.start()
-            
-            _, buf = cv2.imencode(".jpg", img)
-            self.wfile.write("--jpgboundary\r\n")
-            self.send_header('Content-type', 'image/jpeg')
-            self.send_header('Content-length', str(len(buf)))
-            self.end_headers()
-            self.wfile.write(bytearray(buf))
-            self.wfile.write('\r\n')
-
-            self.fps.stop()
-             
 
 # Redirect port 80 to 8080
 # keeping us legal on the field (i.e., requires 80)
@@ -198,23 +156,56 @@ class CamHTTPHandler(BaseHTTPRequestHandler):
 #cmd = ['sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp --dport 80 -j REDIRECT --to-port 8080']
 #call(cmd,shell=True)
 
-# Two steps to starting the HTTP service
-# first instantiate the sevice with a handler for the HTTP GET
-# then place the serve_forever call into a thread so we don't block here
-camHttpServer = HTTPServer(('',8080),CamHTTPHandler)
-camServer = BucketServer("CamServer", camHttpServer).start()
+# Feeds the HTTP server the video stream from selected Processor
+class DisplayStream:
+    def __init__(self):
+        self.fps = FrameRate()
+        self.bitrate = BitRate()
 
-while (camServer.isStopped() == True):
+    def get(self):
+        
+        theProcessor = processors[currentCam.value]                                   
+        (img, _) = theProcessor.read()
+            
+
+        self.fps.start()
+
+        # Write some useful info on the frame
+        camFps, camUtil = theProcessor.camera.fps.get()
+        procFps, procUtil = theProcessor.fps.get()
+        srvFps, srvUtil = self.fps.get()
+        srvBitrate = self.bitrate.get()
+
+        cv2.putText(img, "{:.1f} : {:.0f}%".format(camFps, 100*camUtil), (0, 20), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
+        cv2.putText(img, "{:.1f} : {:.0f}%".format(procFps, 100*procUtil), (0, 40), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
+        cv2.putText(img, "{:.1f} : {:.0f}% : {:.1f}".format(srvFps, 100*srvUtil, srvBitrate), (0, 60), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
+        cv2.putText(img, currentCam.value, (0, 80), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
+        cv2.putText(img, theProcessor.pipeline.name, (0, 100), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
+
+        _, buf = cv2.imencode(".jpg", img)
+        
+        self.bitrate.update(len(buf))      
+        self.fps.stop()
+
+        return buf
+    
+    
+server = BucketServer(DisplayStream()).start()
+while not server.isRunning():
     time.sleep(0.001)
+print("BucketServer appears online!")
 
-print("CamServer appears online!")
+
 bvTable.putString("BucketVisionState","ONLINE")
 
 runTime = 0
 bvTable.putNumber("BucketVisionTime",runTime)
 nextTime = time.time() + 1
 
-while (True):
+# Need a visible window for waitKey to work
+cv2.imshow("Nothing", np.zeros((100,100)))
+
+while True:
 
     if (time.time() > nextTime):
         nextTime = nextTime + 1
@@ -236,34 +227,7 @@ while (True):
     if (frontCam.processUserCommand(key) == True):
         break
         
-# NOTE: NOTE: NOTE:
-# Sometimes the exit gets messed up, but for now we just don't care
 
-#stop the bucket server and processors
-
-frontProcessor.stop()      # stop this first to make the server exit
-
-
-print("Waiting for BucketProcessors to stop...")
-while ((frontProcessor.isStopped() == False)):
-    time.sleep(0.001)
-print("BucketProcessors appear to have stopped.")
-
-camServer.stop()
-print("Waiting for CamServer to stop...")
-while (camServer.isStopped() == False):
-    time.sleep(0.001)
-print("CamServer appears to have stopped.")
-
-
-#stop the cameras capture
-frontCam.stop()
-
-print("Waiting for BucketCaptures to stop...")
-while ((frontCam.isStopped() == False)):
-    time.sleep(0.001)
-print("BucketCaptures appears to have stopped.")
- 
 # do a bit of cleanup
 cv2.destroyAllWindows()
 
