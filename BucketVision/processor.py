@@ -1,80 +1,63 @@
 
 from threading import Thread
-from threading import Condition
+from threading import Lock
+from mailbox import Mailbox
 
 from framerate import FrameRate
 
 class Processor:
-    def __init__(self, camera, pipeline):
-        print("Creating Processor for " + camera.name)
+    def __init__(self, name, camera, pipeline):
+        print("Creating Processor: camera=" + camera.name + " pipeline=" + pipeline.name)
         
-        self.name = camera.name
+        self.name = name
         self.camera = camera
         self.pipeline = pipeline
+        self.lock = Lock()
         
+        self.mailbox = Mailbox()
         self.fps = FrameRate()
-        self.condition = Condition()
-        self.frameAvailable = False
         
         self.running = False
 
-        print("Processor created for " + self.name)
         
     def start(self):
-        print("STARTING Processor for " + self.name)
+        print("Processor " + self.name + " STARTING")
         t = Thread(target=self.run, args=())
         t.daemon = True
         t.start()
         return self
 
     def run(self):
-        print("Processor for " + self.name + " RUNNING")
-        # keep looping infinitely until the thread is stopped
+        print("Processor " + self.name + " RUNNING")
         self.running = True
-
-        
+       
         while True:
 
-            (frame, count) = self.camera.read()
+            frame = self.camera.read(id(self))
             
             self.fps.start()
 
-            self.condition.acquire()
+            self.lock.acquire()
             pipeline = self.pipeline
-            self.condition.release()
+            self.lock.release()
             
             pipeline.process(frame)
-
-                
-            # Now that image processing is complete, place results
-            # into an outgoing buffer to be grabbed at the convenience
-            # of the reader
-            self.condition.acquire()
-            self.outFrame = frame
-            self.outCount = count
-            self.frameAvailable = True
-            self.condition.notify()
-            self.condition.release()
+            self.mailbox.put(frame)
 
             self.fps.stop()
                 
-        print("Processor for " + self.name + " STOPPING")
 
     def setPipeline(self, pipeline):
-        self.condition.acquire()
+        if pipeline == self.pipeline:
+            return
+        
+        self.lock.acquire()
         self.pipeline = pipeline
-        self.condition.release()
+        self.lock.release()
+        print( "Processor " + self.name + " pipeline now=" + pipeline.name)
 
     def read(self):
-        
-        self.condition.acquire()
-        while not self.frameAvailable:
-            self.condition.wait()           
-        outFrame = self.outFrame
-        outCount = self.outCount
-        self.frameAvailable = False
-        self.condition.release()
-        return (outFrame, outCount)
+        return self.mailbox.get()
           
 
     def isRunning(self):

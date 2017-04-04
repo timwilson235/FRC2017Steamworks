@@ -16,11 +16,11 @@ class BitRate:
         self._numFrames += 1
         self._totBytes += bytecnt
     
-    # Returns bitrate in kBit/sec
+    # Returns bitrate in MBit/sec
     def get(self):
         if self._numFrames > 10 :
             totTime = self._stopwatch.stop()
-            self._bitrate = (8*self._totBytes/totTime)/1000.0
+            self._bitrate = (8*self._totBytes/totTime)/1.0e6
             
             self._numFrames = 0
             self._totBytes = 0

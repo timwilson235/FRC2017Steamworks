@@ -115,14 +115,18 @@ print("Cameras appear online!")
 # Processing pipelines for Front Processor
 frontPipes = {'redBoiler'   : Nada('RedBoiler'),
               'blueBoiler'  : Nada('BlueBoiler'),
-              'gearLift'    : GearLift('gearLift', bvTable)
+              'gearLift'    : GearLift('GearLift', bvTable)
               }
 
-frontProcessor = Processor(frontCam, frontPipes['gearLift']).start()
+frontProcessor = Processor("frontProcessor", frontCam, frontPipes['gearLift']).start()
 
+frontProc2 = Processor( "frontProc2", frontCam, frontPipes['redBoiler']).start()
 
 while not frontProcessor.isRunning():
     time.sleep(0.001)
+while not frontProc2.isRunning():
+    time.sleep(0.001)
+    
 print("Processors appear online!")
 
 
@@ -141,7 +145,7 @@ print("Processors appear online!")
 #call(cmd,shell=True)
 
 # Maps network table "CurrentCam" value to Processor
-processors = {'frontCam' : frontProcessor}
+processors = {'frontCam' : frontProcessor, 'front2' : frontProc2}
 
 # Feeds the HTTP server the video stream from selected processor
 class DisplayStream:
@@ -152,7 +156,7 @@ class DisplayStream:
     def get(self):
         
         theProcessor = processors[currentCam.value]                                   
-        (img, _) = theProcessor.read()
+        img = theProcessor.read()
             
         self.fps.start()
 
@@ -164,11 +168,11 @@ class DisplayStream:
 
         cv2.putText(img, "{:.1f} : {:.0f}%".format(camFps, 100*camUtil), (0, 20), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
         cv2.putText(img, "{:.1f} : {:.0f}%".format(procFps, 100*procUtil), (0, 40), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
-        cv2.putText(img, "{:.1f} : {:.0f}% : {:.0f}".format(srvFps, 100*srvUtil, srvBitrate), (0, 60), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
+        cv2.putText(img, "{:.1f} : {:.0f}% : {:.2f}".format(srvFps, 100*srvUtil, srvBitrate), (0, 60), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
         cv2.putText(img, currentCam.value, (0, 80), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
         cv2.putText(img, theProcessor.pipeline.name, (0, 100), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
 
-        _, jpg = cv2.imencode(".jpg", img)
+        _, jpg = cv2.imencode(".jpg", img, (cv2.IMWRITE_JPEG_QUALITY, 80))
         buf = bytearray(jpg)
         
         self.bitrate.update(len(buf))      
@@ -194,23 +198,24 @@ cv2.imshow("Nothing", np.zeros((100,100)))
 
 while True:
 
-    if (time.time() > nextTime):
+    if time.time() > nextTime :
         nextTime += 1.0
         runTime += 1.0
         bvTable.putNumber("BucketVisionTime", runTime)
 
 
     if frontCamMode.value == 'gearLift' :
-        frontCam.updateExposure(FRONT_CAM_GEAR_EXPOSURE)
+        frontCam.setExposure(FRONT_CAM_GEAR_EXPOSURE)
     elif frontCamMode.value == 'blueBoiler' or frontCamMode.value == 'redBoiler':
-        frontCam.updateExposure(FRONT_CAM_NORMAL_EXPOSURE)
+        frontCam.setExposure(FRONT_CAM_NORMAL_EXPOSURE)
 
     frontProcessor.setPipeline( frontPipes[frontCamMode.value])
     
     
     key = cv2.waitKey(100)
-    if (frontCam.processUserCommand(key) == True):
-        break
+    if key == ord('x') :
+        break    
+    frontCam.processUserCommand(key)
         
 
 # do a bit of cleanup
