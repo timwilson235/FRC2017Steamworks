@@ -6,7 +6,7 @@ Many hands make light work!
 A multi-threaded vision pipeline example for Bit Buckets Robotics that
 looks like a bucket brigade
 
-Thanks to Igor Maculan for an mjpg steaming solution!
+Thanks to Igor Maculan for an mjpg streaming solution!
 https://gist.github.com/n3wtron/4624820
 
 Copyright (c) 2017 - RocketRedNeck.com RocketRedNeck.net 

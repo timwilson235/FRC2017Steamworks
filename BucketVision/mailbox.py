@@ -2,18 +2,22 @@
 Created on Apr 3, 2017
 
 @author: twilson
+
+Thread-safe dropbox for passing frames between processing threads
 '''
+
 from threading import Condition
+
 
 class Mailbox:
     def __init__(self):
         self.cond = Condition()
         self.avail = False
-        self.data = None
+        self.frame = None
         
-    def put(self, data):
+    def put(self, frame):
         self.cond.acquire()
-        self.data = data
+        self.frame = frame
         self.avail = True
         self.cond.notify()
         self.cond.release()
@@ -22,7 +26,8 @@ class Mailbox:
         self.cond.acquire()
         while not self.avail:
             self.cond.wait()
-        data = self.data
+        frame = self.frame
         self.avail = False
         self.cond.release()
-        return data
+        return frame
+    

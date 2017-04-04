@@ -1,3 +1,6 @@
+'''
+Thread that runs a GRIP/OpenCV processing pipeline
+'''
 
 from threading import Thread
 from threading import Lock
