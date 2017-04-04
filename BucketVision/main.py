@@ -109,17 +109,18 @@ frontCam = Camera(name="FrontCam", src=0, width=320, height=240,
 while not frontCam.isRunning():
     time.sleep(0.001)
 
-print("Cameras appear online!")
+print("Cameras are online!")
 
 
-# Processing pipelines for Front Processor
+# OpenCV pipelines for Front Processor
 frontPipes = {'redBoiler'   : Nada('RedBoiler'),
               'blueBoiler'  : Nada('BlueBoiler'),
               'gearLift'    : GearLift('GearLift', bvTable)
               }
 
 frontProcessor = Processor("frontProcessor", frontCam, frontPipes['gearLift']).start()
-
+# This is just an example of a 2nd Processor
+# Note that it's OK to use the same Camera (frontCam in this case) in 2 Processors
 frontProc2 = Processor( "frontProc2", frontCam, frontPipes['redBoiler']).start()
 
 while not frontProcessor.isRunning():
@@ -127,7 +128,7 @@ while not frontProcessor.isRunning():
 while not frontProc2.isRunning():
     time.sleep(0.001)
     
-print("Processors appear online!")
+print("Processors are online!")
 
 
 
@@ -147,12 +148,13 @@ print("Processors appear online!")
 # Maps network table "CurrentCam" value to Processor
 processors = {'frontCam' : frontProcessor, 'front2' : frontProc2}
 
-# Feeds the HTTP server the video stream from selected processor
-class DisplayStream:
+# Feeds the video stream from selected processor to the HTTP server
+class JpgSource:
     def __init__(self):
         self.fps = FrameRate()
         self.bitrate = BitRate()
 
+    # Called from HTTP Server to get buffers to stream
     def get(self):
         
         theProcessor = processors[currentCam.value]                                   
@@ -171,7 +173,7 @@ class DisplayStream:
         cv2.putText(img, "{:.1f} : {:.0f}% : {:.2f}".format(srvFps, 100*srvUtil, srvBitrate), (0, 60), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
         cv2.putText(img, currentCam.value, (0, 80), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
         cv2.putText(img, theProcessor.pipeline.name, (0, 100), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
-
+        
         _, jpg = cv2.imencode(".jpg", img, (cv2.IMWRITE_JPEG_QUALITY, 80))
         buf = bytearray(jpg)
         
@@ -181,7 +183,7 @@ class DisplayStream:
         return buf
     
     
-server = Server(DisplayStream()).start()
+server = Server(JpgSource()).start()
 while not server.isRunning():
     time.sleep(0.001)
 print("Server appears online!")

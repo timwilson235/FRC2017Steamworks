@@ -9,7 +9,7 @@ Thread-safe dropbox for passing frames between processing threads
 from threading import Condition
 
 
-class Mailbox:
+class Cubbyhole:
     def __init__(self):
         self.cond = Condition()
         self.avail = False

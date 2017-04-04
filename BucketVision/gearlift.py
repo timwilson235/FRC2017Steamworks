@@ -1,7 +1,5 @@
 import cv2
 import numpy as np
-import math
-from targetdata import TargetData
 from cmath import rect
 
 class GearLift:
@@ -14,7 +12,6 @@ class GearLift:
         """
         self.name = name
         self.networkTable = networkTable
-        self.targetData = TargetData()
         
         self.__resize_image_width = 320.0
         self.__resize_image_height = 240.0

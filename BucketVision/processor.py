@@ -1,10 +1,11 @@
 '''
-Thread that runs a GRIP/OpenCV processing pipeline
+Thread that wraps & runs a GRIP/OpenCV processing pipeline
 '''
 
+import cv2
 from threading import Thread
 from threading import Lock
-from mailbox import Mailbox
+from cubbyhole import Cubbyhole
 
 from framerate import FrameRate
 
@@ -14,10 +15,12 @@ class Processor:
         
         self.name = name
         self.camera = camera
-        self.pipeline = pipeline
-        self.lock = Lock()
         
-        self.mailbox = Mailbox()
+        # Lock to protect access to pipeline member var
+        self.lock = Lock()
+        self.pipeline = pipeline
+        
+        self.mailbox = Cubbyhole()
         self.fps = FrameRate()
         
         self.running = False
@@ -48,6 +51,7 @@ class Processor:
             self.mailbox.put(frame)
 
             self.fps.stop()
+            
                 
 
     def setPipeline(self, pipeline):

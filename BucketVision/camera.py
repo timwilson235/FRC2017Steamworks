@@ -2,24 +2,21 @@
 """
 Created on Tue Jan 24 20:46:25 2017
 
-@author: mtkes
+Thread that gets frames from a camera
+It *is* OK to use one Camera in multiple Processors
 """
 ## NOTE: OpenCV interface to camera controls is sketchy
 ## use v4l2-ctl directly for explicit control
 ## example for dark picture: v4l2-ctl -c exposure_auto=1 -c exposure_absolute=10
 
-# import the necessary packages
 
 import cv2
-
 from subprocess import call
 from threading import Thread
 from threading import Lock
-import platform
 from framerate import FrameRate
-from mailbox import Mailbox
-
-
+from cubbyhole import Cubbyhole
+import platform
 
 
         
@@ -35,6 +32,7 @@ class Camera:
         self.stream.set(cv2.CAP_PROP_FRAME_WIDTH,width)
         self.stream.set(cv2.CAP_PROP_FRAME_HEIGHT,height)
 
+        self.exposure = None
         self.setExposure(exposure)
         
         self.fps = FrameRate()
@@ -90,7 +88,7 @@ class Camera:
     def read(self, userId):
         self.userDictLock.acquire()
         if not userId in self.userDict:
-            self.userDict[userId] = Mailbox()
+            self.userDict[userId] = Cubbyhole()
         mb = self.userDict[userId]
         self.userDictLock.release()
         
@@ -137,16 +135,13 @@ class Camera:
 
 
     def setExposure(self, exposure):
-        
-        if not hasattr(self, 'exposure') :
-            self.exposure = None
-            
+                    
         if self.exposure == exposure :
             return
         
         self.exposure = exposure
         
-        # cv2 exposure control DOES NOT WORK ON PI - or Mac (Darwin)
+        # cv2 exposure control DOES NOT WORK ON PI
         if (platform.system() == 'Windows' or platform.system() == 'Darwin'):
             self.stream.set(cv2.CAP_PROP_EXPOSURE, self.exposure)
         else:
