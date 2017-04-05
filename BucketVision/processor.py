@@ -39,7 +39,7 @@ class Processor:
        
         while True:
 
-            frame = self.camera.read(id(self))
+            frame = self.camera.read(self)
             
             self.fps.start()
 

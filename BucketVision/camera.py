@@ -36,9 +36,11 @@ class Camera:
         self.setExposure(exposure)
         
         self.fps = FrameRate()
-        self.userDict = {}
-        self.userDictLock = Lock()
         self.running = False
+        
+        # Dict maps user (client) to the Cubbyhole instance used to pass it frames
+        self.userDict = {}
+        self.userDictLock = Lock() # Protects shared access to userDict
         
 
         self.rate = self.stream.get(cv2.CAP_PROP_FPS)
@@ -76,6 +78,7 @@ class Camera:
             # Should probably try to reconnect somehow? Don't know how...
                 
             if grabbed:
+                # Pass a copy of the frame to each user in userDict
                 self.userDictLock.acquire()
                 values = self.userDict.values()
                 self.userDictLock.release()
@@ -85,11 +88,15 @@ class Camera:
             self.fps.stop()
 
                 
-    def read(self, userId):
+    def read(self, user):
+        # See if this user already registered in userDict.
+        # If not, create a new Cubbyhole instance to pass frames to user.
+        # If so, just get the user's Cubbyhole instance.
+        # Then get the frame from the Cubbyhole & return it.
         self.userDictLock.acquire()
-        if not userId in self.userDict:
-            self.userDict[userId] = Cubbyhole()
-        mb = self.userDict[userId]
+        if not user in self.userDict:
+            self.userDict[user] = Cubbyhole()
+        mb = self.userDict[user]
         self.userDictLock.release()
         
         return mb.get()     
