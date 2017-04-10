@@ -4,6 +4,7 @@ import org.usfirst.frc.team4183.robot.Robot;
 import org.usfirst.frc.team4183.robot.RobotMap;
 import org.usfirst.frc.team4183.utils.ControlLoop;
 import org.usfirst.frc.team4183.utils.LogWriterFactory;
+import org.usfirst.frc.team4183.utils.PWM;
 import org.usfirst.frc.team4183.utils.RateLimit;
 import org.usfirst.frc.team4183.utils.SettledDetector;
 
@@ -48,9 +49,13 @@ public class DriveStraight extends Command implements ControlLoop.ControlLoopUse
 	// Limits ramp rate of drive signal
 	private final double RATE_LIM_PER_SEC = 3.0;
 				
+	private final double PWM_FREQ_HZ = 8.0;
+	private final double PWM_MAXDRIVE = 0.8;
+	
 	private final double distanceInch;
 	
 	private ControlLoop cloop;
+	private PWM pwm;
 	private RateLimit rateLimit;
 	private SettledDetector settledDetector; 
 	private SettledDetector hangupDetector;
@@ -87,6 +92,9 @@ public class DriveStraight extends Command implements ControlLoop.ControlLoopUse
 		Robot.oi.btnAlignLock.push();
 		
 		// Fire up the loop
+		pwm = new PWM( PWM_FREQ_HZ, PWM_MAXDRIVE, 
+				(x)->Robot.oi.axisForward.set(x));
+		pwm.start();
 		cloop = new ControlLoop( this, setPoint);
 		cloop.enableLogging("DriveStraight");
 		cloop.start();
@@ -111,10 +119,11 @@ public class DriveStraight extends Command implements ControlLoop.ControlLoopUse
 	
 	@Override
 	protected void end() {
+			
+		// Don't forget to stop the threads!
+		cloop.stop();		
+		pwm.stop();
 	
-		// Don't forget to stop the control loop!
-		cloop.stop();
-		
 		logWriter.close();
 		
 		// Put DriveSubsystem out of "Align Lock"
@@ -160,11 +169,12 @@ public class DriveStraight extends Command implements ControlLoop.ControlLoopUse
 		
 		x = rateLimit.f(x);
 		
-		if( Math.abs(error) > DEAD_ZONE_INCH)
-			x += DITHER_AMPL*ditherSignal();
+		
+		//if( Math.abs(error) > DEAD_ZONE_INCH)
+		//	x += DITHER_AMPL*ditherSignal();
 		
 		// Set the output
-		Robot.oi.axisForward.set( x);
+		pwm.set(x);
 	}
 
 	double ditherSignal() {
