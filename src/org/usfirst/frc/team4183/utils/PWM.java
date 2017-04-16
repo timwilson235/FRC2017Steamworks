@@ -9,14 +9,14 @@ public class PWM {
 
 	private long periodMsecs;
 	private User user;
-	private double maxDrive;
+	private double pulseLevel;
 	private volatile double val;
 	private PWMThread loopThread;
 	
 
-	public PWM( double freqHz, double maxDrive, User user) {
+	public PWM( double freqHz, double pulseLevel, User user) {
 		periodMsecs = Math.round(1000.0/Math.abs(freqHz));
-		this.maxDrive = Math.min(1.0, Math.abs(maxDrive));
+		this.pulseLevel = Math.min(1.0, Math.abs(pulseLevel));
 		this.user = user;
 		this.val = 0.0;
 
@@ -65,9 +65,9 @@ public class PWM {
 			try {
 				while( true) {
 
-					long onMsecs = Math.round(periodMsecs * Math.min(Math.abs(val)/maxDrive, 1.0));
+					long onMsecs = Math.round(periodMsecs * Math.min(Math.abs(val)/pulseLevel, 1.0));
 					long offMsecs = Math.max(0, periodMsecs - onMsecs);				
-					double onVal = Math.signum(val)*Math.max(Math.abs(val), maxDrive);
+					double onVal = Math.signum(val)*Math.max(Math.abs(val), pulseLevel);
 
 					if( onMsecs > 0) {
 						user.set(onVal);

@@ -50,7 +50,7 @@ public class DriveStraight extends Command implements ControlLoop.ControlLoopUse
 	private final double RATE_LIM_PER_SEC = 3.0;
 				
 	private final double PWM_FREQ_HZ = 8.0;
-	private final double PWM_MAXDRIVE = 0.8;
+	private final double PWM_PULSELEVEL = 0.6;
 	
 	private final double distanceInch;
 	
@@ -92,7 +92,7 @@ public class DriveStraight extends Command implements ControlLoop.ControlLoopUse
 		Robot.oi.btnAlignLock.push();
 		
 		// Fire up the loop
-		pwm = new PWM( PWM_FREQ_HZ, PWM_MAXDRIVE, 
+		pwm = new PWM( PWM_FREQ_HZ, PWM_PULSELEVEL, 
 				(x)->Robot.oi.axisForward.set(x));
 		pwm.start();
 		cloop = new ControlLoop( this, setPoint);
