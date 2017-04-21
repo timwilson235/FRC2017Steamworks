@@ -65,6 +65,8 @@ class Server:
         
         print("Creating Server")
         
+        # This is an ugly way to do things but have to
+        # because 2nd arg to HTTPServer is a class, not an instance
         HTTPHandler.jpgSource = jpgSource
         self.server = HTTPServer(('', 8080), HTTPHandler)
                        

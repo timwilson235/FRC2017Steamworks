@@ -38,7 +38,6 @@ SOFTWARE.
 """
 
 import cv2
-import numpy as np
 import time
 import logging      # Needed if we want to see debug messages from NetworkTables
 import platform
@@ -51,7 +50,7 @@ from processor import Processor   # Image processing
 from server import Server         # Web server
 from framerate import FrameRate
 from bitrate import BitRate
-
+from cubbyhole import Cubbyhole
 
 # Instances of GRIP created pipelines (they usually require some manual manipulation
 # but basically we would pass one or more of these into one or more image processors (threads)
@@ -148,14 +147,16 @@ print("Processors are online!")
 # Maps network table "CurrentCam" value to Processor
 processors = {'frontCam' : frontProcessor, 'front2' : frontProc2}
 
+
 # Feeds the video stream from selected processor to the HTTP server
 class JpgSource:
     def __init__(self):
         self.fps = FrameRate()
         self.bitrate = BitRate()
+        self.cubby = Cubbyhole()
 
     # Called from HTTP Server to get buffers to stream
-    def get(self):
+    def show(self):
         
         theProcessor = processors[currentCam.value]                                   
         img = theProcessor.read()
@@ -176,14 +177,22 @@ class JpgSource:
         
         _, jpg = cv2.imencode(".jpg", img, (cv2.IMWRITE_JPEG_QUALITY, 80))
         buf = bytearray(jpg)
+        self.cubby.put(buf)
         
         self.bitrate.update(len(buf))      
         self.fps.stop()
 
-        return buf
-    
-    
-server = Server(JpgSource()).start()
+        cv2.imshow( "Image", img)
+        key = cv2.waitKey(1)
+        return key
+   
+    def get(self):
+        return self.cubby.get()
+                
+        
+        
+jpgSrc = JpgSource()
+server = Server(jpgSrc).start()
 while not server.isRunning():
     time.sleep(0.001)
 print("Server appears online!")
@@ -196,7 +205,7 @@ bvTable.putNumber("BucketVisionTime", runTime)
 nextTime = time.time() + 1.0
 
 # Need a visible window for waitKey to work
-cv2.imshow("Nothing", np.zeros((100,100)))
+#cv2.imshow("Nothing", np.zeros((100,100)))
 
 while True:
 
@@ -213,8 +222,7 @@ while True:
 
     frontProcessor.setPipeline( frontPipes[frontCamMode.value])
     
-    
-    key = cv2.waitKey(100)
+    key = jpgSrc.show()
     if key == ord('x') :
         break    
     frontCam.processUserCommand(key)
