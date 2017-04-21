@@ -37,6 +37,7 @@ from threading import Thread
 
 class HTTPHandler(BaseHTTPRequestHandler):
     
+    # Note this is static (class) variable
     jpgSource = None
             
     def do_GET(self):

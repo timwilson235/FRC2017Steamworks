@@ -149,13 +149,12 @@ processors = {'frontCam' : frontProcessor, 'front2' : frontProc2}
 
 
 # Feeds the video stream from selected processor to the HTTP server
-class JpgSource:
+class ImgSink:
     def __init__(self):
         self.fps = FrameRate()
         self.bitrate = BitRate()
         self.cubby = Cubbyhole()
 
-    # Called from HTTP Server to get buffers to stream
     def show(self):
         
         theProcessor = processors[currentCam.value]                                   
@@ -175,6 +174,7 @@ class JpgSource:
         cv2.putText(img, currentCam.value, (0, 80), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
         cv2.putText(img, theProcessor.pipeline.name, (0, 100), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 0), 1)
         
+        # Compress image to jpeg and stash in cubbyhole for webserver to grab
         _, jpg = cv2.imencode(".jpg", img, (cv2.IMWRITE_JPEG_QUALITY, 80))
         buf = bytearray(jpg)
         self.cubby.put(buf)
@@ -182,17 +182,19 @@ class JpgSource:
         self.bitrate.update(len(buf))      
         self.fps.stop()
 
+        # Show the final image in local window and watch for keypresses
         cv2.imshow( "Image", img)
         key = cv2.waitKey(1)
         return key
-   
+    
+    # Web Server calls this to get jpeg to send
     def get(self):
         return self.cubby.get()
                 
         
         
-jpgSrc = JpgSource()
-server = Server(jpgSrc).start()
+imgSink = ImgSink()
+server = Server(imgSink).start()
 while not server.isRunning():
     time.sleep(0.001)
 print("Server appears online!")
@@ -204,8 +206,6 @@ runTime = 0
 bvTable.putNumber("BucketVisionTime", runTime)
 nextTime = time.time() + 1.0
 
-# Need a visible window for waitKey to work
-#cv2.imshow("Nothing", np.zeros((100,100)))
 
 while True:
 
@@ -222,7 +222,8 @@ while True:
 
     frontProcessor.setPipeline( frontPipes[frontCamMode.value])
     
-    key = jpgSrc.show()
+    key = imgSink.show()
+    
     if key == ord('x') :
         break    
     frontCam.processUserCommand(key)
