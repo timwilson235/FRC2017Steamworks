@@ -39,27 +39,32 @@ class HTTPHandler(BaseHTTPRequestHandler):
     
     # Note this is static (class) variable
     jpgSource = None
-            
+
+    
     def do_GET(self):
 
         print(self.path)
         
-        self.send_response(200)
-        self.send_header('Content-type', 'multipart/x-mixed-replace; boundary=--jpgboundary')
-        self.end_headers()
-        
-        while True:
-            
-            buf = self.jpgSource.get()
-                                          
-            self.wfile.write("--jpgboundary\r\n")
-            self.send_header('Content-type', 'image/jpeg')
-            self.send_header('Content-length', str(len(buf)))
+        # Respond to URL 'hostname:port/' or 'hostname:port/cam.mjpg'
+        if self.path.endswith('/') or self.path.endswith('.mjpg'):
+    
+            self.send_response(200)
+            self.send_header('Content-type', 'multipart/x-mixed-replace; boundary=--jpgboundary')
             self.end_headers()
-            self.wfile.write(buf)
-            self.wfile.write('\r\n')
-
-             
+            
+            while True:
+                
+                buf = self.jpgSource.get()
+                                              
+                self.wfile.write("--jpgboundary\r\n")
+                self.send_header('Content-type', 'image/jpeg')
+                self.send_header('Content-length', str(len(buf)))
+                self.end_headers()
+                self.wfile.write(buf)
+                self.wfile.write('\r\n')
+                
+        else:
+            self.send_error(404, "Not found")
         
 
 class Server:
