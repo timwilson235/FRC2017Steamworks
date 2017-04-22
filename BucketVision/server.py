@@ -41,6 +41,8 @@ class HTTPHandler(BaseHTTPRequestHandler):
     jpgSource = None
             
     def do_GET(self):
+
+        print(self.path)
         
         self.send_response(200)
         self.send_header('Content-type', 'multipart/x-mixed-replace; boundary=--jpgboundary')
