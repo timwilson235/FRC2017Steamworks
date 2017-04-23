@@ -119,7 +119,7 @@ frontPipes = {'redBoiler'   : Nada('RedBoiler'),
 
 frontProcessor = Processor("frontProcessor", frontCam, frontPipes['gearLift']).start()
 # This is just an example of a 2nd Processor
-# Note that it's OK to use the same Camera (frontCam in this case) in 2 Processors
+# Note that it's OK to use the same Camera (frontCam in this case) to feed multiple Processors
 frontProc2 = Processor( "frontProc2", frontCam, frontPipes['redBoiler']).start()
 
 while not frontProcessor.isRunning():
@@ -144,17 +144,21 @@ print("Processors are online!")
 #cmd = ['sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp --dport 80 -j REDIRECT --to-port 8080']
 #call(cmd,shell=True)
 
-# Maps network table "CurrentCam" value to Processor
+# Dict maps network table entry "CurrentCam" to Processor instance
 processors = {'frontCam' : frontProcessor, 'front2' : frontProc2}
 
 
-# Feeds the video stream from selected processor to the HTTP server
+# Final sink for processed video
 class ImgSink:
     def __init__(self):
         self.fps = FrameRate()
         self.bitrate = BitRate()
         self.cubby = Cubbyhole()
 
+    # Gets frames from selected processor, 
+    # displays vid in local window,
+    # compresses frame to jpg buffer & hands buffer to web server.
+    # Called from main thread - note, imshow can only be called from main thread or big crash!
     def show(self):
         
         theProcessor = processors[currentCam.value]                                   
@@ -182,7 +186,7 @@ class ImgSink:
         self.bitrate.update(len(buf))      
         self.fps.stop()
 
-        # Show the final image in local window and watch for keypresses
+        # Show the final image in local window and watch for keypresses.
         cv2.imshow( "Image", img)
         key = cv2.waitKey(1)
         return key
@@ -192,29 +196,28 @@ class ImgSink:
         return self.cubby.get()
                 
         
-        
+# Start web server
 imgSink = ImgSink()
 server = Server(imgSink).start()
 while not server.isRunning():
     time.sleep(0.001)
 print("Server appears online!")
 
-
 bvTable.putString("BucketVisionState","ONLINE")
 
+# Drop into final loop
 runTime = 0
 bvTable.putNumber("BucketVisionTime", runTime)
 nextTime = time.time() + 1.0
 
-
 while True:
-
+    # Update uptime seconds
     if time.time() > nextTime :
         nextTime += 1.0
         runTime += 1.0
         bvTable.putNumber("BucketVisionTime", runTime)
 
-
+    # Check for processor pipeline change
     if frontCamMode.value == 'gearLift' :
         frontCam.setExposure(FRONT_CAM_GEAR_EXPOSURE)
     elif frontCamMode.value == 'blueBoiler' or frontCamMode.value == 'redBoiler':

@@ -20,7 +20,7 @@ class Processor:
         self.lock = Lock()
         self.pipeline = pipeline
         
-        self.mailbox = Cubbyhole()
+        self.cubby = Cubbyhole()
         self.fps = FrameRate()
         
         self.running = False
@@ -48,7 +48,7 @@ class Processor:
             self.lock.release()
             
             pipeline.process(frame)
-            self.mailbox.put(frame)
+            self.cubby.put(frame)
 
             self.fps.stop()
             
@@ -64,7 +64,7 @@ class Processor:
         print( "Processor " + self.name + " pipeline now=" + pipeline.name)
 
     def read(self):
-        return self.mailbox.get()
+        return self.cubby.get()
           
 
     def isRunning(self):
