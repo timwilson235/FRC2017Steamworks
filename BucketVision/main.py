@@ -41,7 +41,7 @@ import cv2
 import time
 import logging      # Needed if we want to see debug messages from NetworkTables
 import platform
-
+import os
 
 from networktables import NetworkTables
 
@@ -236,4 +236,4 @@ while True:
 cv2.destroyAllWindows()
 
 print("Goodbye!")
-
+os._exit(0)
